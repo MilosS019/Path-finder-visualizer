@@ -1,19 +1,23 @@
-let start_element = null;
-let end_element = null;
+//Visualisation variables
 let current_mode = "startPoint"
 let active_button = document.getElementsByClassName("buttons")[0];
+let start_element = null;
+let end_element = null;
 let creating_walls = false;
+let col_num = 40;
+let row_num = 15;
+let speed = 10
+let active_alogorithm = "Dijkstra"
+
+//Path finding variables
 let possible_moves = [];
 let visited_nodes = []
 let fields = [];
 let walls_objects = [];
 let walls_positions = [];
 let move_history = []
-let col_num = 40;
-let row_num = 15;
-let speed = 10
+let distances = []
 let info_box_is_displayed = false;
-let active_alogorithm = "Dijkstra"
 
 function ResetVariables(){
     playedMoves = []
@@ -161,7 +165,7 @@ function GenerateSquares(){
         fields.push(element);
         visited_nodes.push(false)
         move_history.push(-1)
-        
+        distances.push(999)
         SetButtonEventListeners();
     }
 } 
@@ -248,8 +252,8 @@ function CloseInfoBox(){
 async function visit(index, prev_index, is_already_visited = false){
     if(index != parseInt(end_element.id))
         fields[index].classList.add("searchedFieldColor")
+    visited_nodes[index] = true
     if(!is_already_visited){
-        visited_nodes[index] = true
         move_history[index] = prev_index
     }
 }
@@ -279,10 +283,8 @@ async function dfs(){
     while(possible_moves.length != 0){
         let next_move_index = possible_moves.pop()
         await visit(next_move_index, prev_element_index)
-        if(next_move_index == parseInt(end_element.id)){
-            show_path()
+        if(await over(next_move_index))
             return
-        }
         find_possible_moves(next_move_index)
         prev_element_index = next_move_index
         await sleep(5)
@@ -295,78 +297,132 @@ async function dfs(){
 async function bfs(){
     let prev_element_index = parseInt(start_element.id)
     visited_nodes[prev_element_index] = true
-    find_possible_moves(prev_element_index, true)
+    possible_moves = find_possible_moves(prev_element_index, true)
 
     while(possible_moves.length != 0){
         // console.log(possible_moves)
         let next_move_index = possible_moves.shift()
+        if(visited_nodes[next_move_index])
+            continue
         await visit(next_move_index, prev_element_index, true)
-        if(next_move_index == parseInt(end_element.id)){
-            await show_path()
-            return
-        }
-        find_possible_moves(next_move_index, true)
+        if(await over(next_move_index)) 
+            return;
+        let new_possible_moves = find_possible_moves(next_move_index, true)
+        setParentNode(new_possible_moves, next_move_index)
+        possible_moves = possible_moves.concat(new_possible_moves)
         prev_element_index = next_move_index
         await sleep(50)
     }
 }
 
+function setParentNode(new_possible_moves, previous_node_index){
+    for(let node_index of new_possible_moves){
+        move_history[node_index] = previous_node_index
+    }
+}
+
+//Dijkstra
+//--------------------------------------------------------------------------------
+async function dijkstra(){
+    let prev_element_index = parseInt(start_element.id)
+    visited_nodes[prev_element_index] = true
+    distances[prev_element_index] = 0
+    possible_moves = find_possible_moves(prev_element_index)
+    update_new_possible_moves_distances(prev_element_index, possible_moves)
+    while(possible_moves.length != 0){
+        next_node_index = find_next_move_dijkstra()
+        if(visited_nodes[next_node_index])
+            continue
+        await visit(next_node_index, prev_element_index, true)
+        if(await over(next_node_index))
+            return
+        let new_possible_moves = find_possible_moves(next_node_index)
+        update_new_possible_moves_distances(next_node_index, new_possible_moves)
+        possible_moves = possible_moves.concat(new_possible_moves)
+        prev_element_index = next_node_index
+        await sleep(50)
+    }
+}
+
+function update_new_possible_moves_distances(previous_node_index, new_nodes_indexes){
+    for(let new_node_index of new_nodes_indexes){
+        if(distances[previous_node_index] + 1 < distances[new_node_index]){
+            distances[new_node_index] = distances[previous_node_index] + 1
+            move_history[new_node_index] = previous_node_index
+        }
+    }
+}
+
+function find_next_move_dijkstra(){
+    let best_move_index = possible_moves[0]
+    let counter = 0
+    let best_move_local_index = 0
+    for(let possible_move of possible_moves){
+        if(distances[possible_move] < distances[best_move_index]){
+            best_move_index = possible_move
+            best_move_local_index = counter
+        }
+        counter += 1
+    }
+    possible_moves.splice(best_move_local_index, 1)
+    return best_move_index
+}
+
 
 //This function finds all the nodes where our algorythm can go from the current node
 //This is used for all of the algorythms
-function find_possible_moves(index, visit_on_add = false){
-    console.log(visit_on_add)
-    add_top_element(index, visit_on_add) 
-    add_right_element(index, visit_on_add) 
-    add_bottom_element(index, visit_on_add) 
-    add_left_element(index, visit_on_add) 
+//visit_on_add is there so that moves added to the possible moves list are imediately added to the move history as well
+//as the visited nodes so we could track which nodes our bfs has already searched and from which node it searched
+async function over(next_move_index){
+    if(next_move_index == parseInt(end_element.id)){
+        await show_path()
+        return true
+    }
+    return false
 }
 
-function add_top_element(index, visit_on_add){
+function find_possible_moves(index){
+    let new_possible_moves = []
+    let top_index = add_top_element(index)
+    if(top_index != null) new_possible_moves.push(top_index)
+    let right_index = add_right_element(index)
+    if(right_index != null) new_possible_moves.push(right_index)
+    let bottom_index = add_bottom_element(index)
+    if(bottom_index != null) new_possible_moves.push(bottom_index)
+    let left_index = add_left_element(index)
+    if(left_index != null) new_possible_moves.push(left_index)
+    return new_possible_moves 
+}
+
+function add_top_element(index){
     let new_index = index - col_num 
     if(new_index >= 0)
-        if(!visited_nodes[new_index]){
-            possible_moves.push(new_index)
-            if(visit_on_add){
-                visited_nodes[new_index] = true
-                move_history[new_index] = index
-            }
+        if(!visited_nodes[new_index] && !walls_positions[new_index]){
+            return new_index
         } 
 }
 
-function add_right_element(index, visit_on_add){
+function add_right_element(index){
     let new_index = index +  1
     if(new_index % col_num != 0)
-        if(!visited_nodes[new_index]){
-            possible_moves.push(new_index)
-            if(visit_on_add){
-                visited_nodes[new_index] = true
-                move_history[new_index] = index
-            }
+        if(!visited_nodes[new_index] && !walls_positions[new_index]){ 
+            return new_index            
         } 
 }
 
-function add_bottom_element(index, visit_on_add){
+function add_bottom_element(index){
     let new_index = index + col_num
     if(new_index <= (row_num * col_num) - 1)
-        if(!visited_nodes[new_index]){
-            possible_moves.push(new_index)
-            if(visit_on_add){
-                visited_nodes[new_index] = true
-                move_history[new_index] = index
+        if(!visited_nodes[new_index] && !walls_positions[new_index]){
+            return new_index
         }
-    } 
 }
 
-function add_left_element(index, visit_on_add){
+function add_left_element(index){
     let new_index = index - 1
     if(index % col_num != 0)
-        if(!visited_nodes[new_index]){
-            possible_moves.push(new_index) 
-            if(visit_on_add){        
-                visited_nodes[new_index] = true
-                move_history[new_index] = index
-            }
+        if(!visited_nodes[new_index] && !walls_positions[new_index]){
+            return new_index 
         }
 }
 
@@ -375,5 +431,6 @@ function add_left_element(index, visit_on_add){
 //--------------------------------------------------------------------------
 function start(){
     // dfs()
-    bfs()
+    // bfs()
+    dijkstra()
 }
