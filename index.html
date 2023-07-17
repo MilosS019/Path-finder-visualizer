@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Graph search algorithms</title>
+        <link rel="stylesheet" href="style.css">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300&display=swap" rel="stylesheet">
+    </head>
+
+    <body onload="GenerateSquares()"  onclick="CloseInfoBox()">
+        <header>
+            <div class = "menu">
+                <img src = "Images/menu.png">
+            </div>
+            <div class = "marginLeft">
+                <a href="#" id = "Dijkstra" class = "activeAlgorithm" onclick="ChangeActiveAlgorithm('Dijkstra')"><b>Dijkstra</b></a>
+                <a href="#" id = "A*" onclick="ChangeActiveAlgorithm('AStar')"><b>A*</b></a>
+                <a href="#" id = "x" onclick="ChangeActiveAlgorithm()"><b>X</b></a>
+                <a href="#" id = "x" onclick="ChangeActiveAlgorithm()"><b>X</b></a>
+                <a href="#" id = "x" onclick="ChangeActiveAlgorithm()"><b>X</b></a>
+            </div>
+            <div id = "informations">
+                <img src = "Images/questionMark.png" onclick="DisplayInfoBoxTriangle()">
+                <div class = "infoTriangle firstTriangle"></div>
+                <div class = "infoTriangle secondTriangle"></div>
+                <div class = "infoBox">
+                    <h1>Headline</h1>
+                    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut aliquam, sapien non faucibus finibus, ex orci congue nulla, nec condimentum velit odio vitae purus. Etiam id ornare erat. Suspendisse facilisis sapien et justo interdum, vitae ullamcorper quam iaculis. Pellentesque nisi dui, cursus sit amet turpis sed, mattis fermentum ex. Pellentesque eu nunc tincidunt, tempus lectus non, malesuada urna. Fusce rutrum massa</p>
+                    <div id = "dotSlider">
+                        <div class = "dot"></div>
+                        <div class = "dot"></div>
+                        <div class = "dot"></div>
+                        <div class = "dot"></div>
+                    </div>
+                </div>
+            </div>
+        </header>
+        <div id = "grid">
+
+        </div>
+        <div id = "buttonContainer">
+            <div class="button" id = "startFieldButton">
+                <h1>Starting point</h1>
+            </div>
+            <div class="button" id = "endFieldButton">
+                <h1>Ending point</h1>
+            </div>
+            <div class="button" id = "wallButton">
+                <h1>Wall</h1>
+            </div>
+            <div class="button" id = "clearWallsButton" onclick="ClearWalls()">
+                
+                <h1>Clear walls</h1>
+            </div>
+            <div class="button" id = "resetButton" onclick="ResetVariables()">
+                <h1>Reset</h1>
+            </div>
+            <div class="button" id = "startButton" onclick="start()">
+                <h1>Start</h1>
+            </div>
+        </div>
+        <script src="js.js"></script>
+    </body>
+
+</html>
