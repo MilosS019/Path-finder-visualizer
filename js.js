@@ -245,19 +245,21 @@ function CloseInfoBox(){
 }
 
 
-async function visit(index, prev_index){
+async function visit(index, prev_index, is_already_visited = false){
     if(index != parseInt(end_element.id))
         fields[index].classList.add("searchedFieldColor")
-    visited_nodes[index] = true
-    move_history[prev_index] = index
+    if(!is_already_visited){
+        visited_nodes[index] = true
+        move_history[index] = prev_index
+    }
 }
 
 async function show_path(){
-    let next_element_index = move_history[parseInt(start_element.id)]
-    while(next_element_index != parseInt(end_element.id)){
-        fields[next_element_index].classList.add("green")
-        fields[next_element_index].classList.remove("searchedFieldColor")
-        next_element_index = move_history[parseInt(fields[next_element_index].id)]
+    let prev_element_index = move_history[parseInt(end_element.id)]
+    while(prev_element_index != parseInt(start_element.id)){
+        fields[prev_element_index].classList.add("green")
+        fields[prev_element_index].classList.remove("searchedFieldColor")
+        prev_element_index = move_history[parseInt(fields[prev_element_index].id)]
         await sleep(10)
     } 
 }
@@ -266,6 +268,9 @@ async function show_path(){
 //This is where pathfinding logic starts
 //-------------------------------------------------------------------------------
 
+
+//DFS
+//-------------------------------------------------------------------------------
 async function dfs(){
     let prev_element_index = parseInt(start_element.id)
     visited_nodes[prev_element_index] = true
@@ -284,45 +289,91 @@ async function dfs(){
     }
 }
 
-//This function finds all the nodes where our algorythm can go from the current node
-function find_possible_moves(index){
-    add_top_element(index) 
-    add_right_element(index) 
-    add_bottom_element(index) 
-    add_left_element(index) 
+
+//BFS
+//-------------------------------------------------------------------------------
+async function bfs(){
+    let prev_element_index = parseInt(start_element.id)
+    visited_nodes[prev_element_index] = true
+    find_possible_moves(prev_element_index, true)
+
+    while(possible_moves.length != 0){
+        // console.log(possible_moves)
+        let next_move_index = possible_moves.shift()
+        await visit(next_move_index, prev_element_index, true)
+        if(next_move_index == parseInt(end_element.id)){
+            await show_path()
+            return
+        }
+        find_possible_moves(next_move_index, true)
+        prev_element_index = next_move_index
+        await sleep(50)
+    }
 }
 
-function add_top_element(index){
+
+//This function finds all the nodes where our algorythm can go from the current node
+//This is used for all of the algorythms
+function find_possible_moves(index, visit_on_add = false){
+    console.log(visit_on_add)
+    add_top_element(index, visit_on_add) 
+    add_right_element(index, visit_on_add) 
+    add_bottom_element(index, visit_on_add) 
+    add_left_element(index, visit_on_add) 
+}
+
+function add_top_element(index, visit_on_add){
     let new_index = index - col_num 
     if(new_index >= 0)
-        if(!visited_nodes[new_index])
-            possible_moves.push(new_index) 
+        if(!visited_nodes[new_index]){
+            possible_moves.push(new_index)
+            if(visit_on_add){
+                visited_nodes[new_index] = true
+                move_history[new_index] = index
+            }
+        } 
 }
 
-function add_right_element(index){
+function add_right_element(index, visit_on_add){
     let new_index = index +  1
     if(new_index % col_num != 0)
-        if(!visited_nodes[new_index])
-            possible_moves.push(new_index) 
+        if(!visited_nodes[new_index]){
+            possible_moves.push(new_index)
+            if(visit_on_add){
+                visited_nodes[new_index] = true
+                move_history[new_index] = index
+            }
+        } 
 }
 
-function add_bottom_element(index){
+function add_bottom_element(index, visit_on_add){
     let new_index = index + col_num
     if(new_index <= (row_num * col_num) - 1)
-        if(!visited_nodes[new_index])
-            possible_moves.push(new_index) 
+        if(!visited_nodes[new_index]){
+            possible_moves.push(new_index)
+            if(visit_on_add){
+                visited_nodes[new_index] = true
+                move_history[new_index] = index
+        }
+    } 
 }
 
-function add_left_element(index){
+function add_left_element(index, visit_on_add){
     let new_index = index - 1
     if(index % col_num != 0)
-        if(!visited_nodes[new_index])
+        if(!visited_nodes[new_index]){
             possible_moves.push(new_index) 
+            if(visit_on_add){        
+                visited_nodes[new_index] = true
+                move_history[new_index] = index
+            }
+        }
 }
 
 
 //Start the pathfinding
 //--------------------------------------------------------------------------
 function start(){
-    dfs()
+    // dfs()
+    bfs()
 }
