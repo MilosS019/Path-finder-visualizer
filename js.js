@@ -4,12 +4,13 @@ let active_button = document.getElementsByClassName("buttons")[0];
 let start_element = null;
 let end_element = null;
 let creating_walls = false;
-let col_num = 60;
-let row_num = 40;
+let col_num = 40;
+let row_num = 15;
 let speed = 10
 let active_alogorithm = "Dijkstra"
 let walls_stack = []
 let walls_placed_counter = [0,[]]
+let first_generation = true
 
 //Path finding variables
 let possible_moves = [];
@@ -20,6 +21,21 @@ let is_wall = [];
 let move_history = []
 let distances = []
 let info_box_is_displayed = false;
+
+function change_grid_dimensions(){
+    console.log("jej")
+    try{
+        let new_col_num = parseInt(document.getElementById("col_num").value)
+        let new_row_num = parseInt(document.getElementById("row_num").value)
+        let old_col_num = col_num
+        let old_row_num = row_num
+        col_num = new_col_num
+        row_num = new_row_num
+        GenerateSquares(old_col_num, old_row_num)
+    }catch{
+        alert("Please enter valid numbers")
+    }
+}
 
 function set_undo(){
     document.addEventListener('keydown', function(event) {
@@ -44,12 +60,18 @@ function remove_previously_placed_walls(){
     }
 }
 
-function ResetVariables(){
+async function ResetVariables(old_col_num = col_num, old_row_num = row_num){
     // walls_positions = []
     move_history = []
     possible_moves = []
     // ClearWalls()
-    for(i = 0; i < row_num * col_num; i++){
+    let local_col_num = col_num
+    let local_row_num = row_num
+    if(local_col_num != old_col_num)
+        local_col_num = old_col_num
+    if(local_row_num != old_row_num)
+        local_row_num = old_row_num
+    for(i = 0; i < local_col_num * local_row_num; i++){
         if(fields[i].classList.contains("searchedFieldColor")){
             fields[i].classList.remove("searchedFieldColor");
         }else if(fields[i].classList.contains("green")) {
@@ -185,10 +207,21 @@ function ElementContextMenuEvent(i, element){
     }, false)
 }
 
-function GenerateSquares(){
+async function reset_display_variables(){
+    is_wall = []
+    fields = []
+}
+
+async function GenerateSquares(old_col_num = col_num, old_row_num = row_num){
+    if(!first_generation){
+        await ResetVariables(old_col_num, old_row_num);
+        await reset_display_variables()
+    }
     CreateWallArray();
     set_undo()
     let grid = document.getElementById("grid");
+    grid.innerHTML = ""
+
     for(let i = 0; i < col_num * row_num; i++){
         let element = document.createElement("div")
         SetElementAtributes(i, element)
@@ -206,6 +239,7 @@ function GenerateSquares(){
         distances.push(999)
         SetButtonEventListeners();
     }
+    first_generation = false
 } 
 
 function ClearWalls(){
