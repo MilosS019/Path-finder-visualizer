@@ -11,7 +11,7 @@ let active_alogorithm = "Dijkstra"
 
 //Path finding variables
 let possible_moves = [];
-let visited_nodes = []
+let node_visited = []
 let fields = [];
 let walls_objects = [];
 let walls_positions = [];
@@ -20,13 +20,18 @@ let distances = []
 let info_box_is_displayed = false;
 
 function ResetVariables(){
-    playedMoves = []
+    walls_positions = []
+    move_history = []
+    possible_moves = []
+    // ClearWalls()
     for(i = 0; i < row_num * col_num; i++){
         if(fields[i].classList.contains("searchedFieldColor")){
             fields[i].classList.remove("searchedFieldColor");
         }else if(fields[i].classList.contains("green")) {
             fields[i].classList.remove("green");
         }
+        distances[i] = 999
+        node_visited[i] = false
         fields[i].innerHTML = "";
     }
 }
@@ -163,7 +168,7 @@ function GenerateSquares(){
 
         grid.appendChild(element);
         fields.push(element);
-        visited_nodes.push(false)
+        node_visited.push(false)
         move_history.push(-1)
         distances.push(999)
         SetButtonEventListeners();
@@ -252,7 +257,7 @@ function CloseInfoBox(){
 async function visit(index, prev_index, is_already_visited = false){
     if(index != parseInt(end_element.id))
         fields[index].classList.add("searchedFieldColor")
-    visited_nodes[index] = true
+    node_visited[index] = true
     if(!is_already_visited){
         move_history[index] = prev_index
     }
@@ -277,15 +282,16 @@ async function show_path(){
 //-------------------------------------------------------------------------------
 async function dfs(){
     let prev_element_index = parseInt(start_element.id)
-    visited_nodes[prev_element_index] = true
-    find_possible_moves(prev_element_index)
+    node_visited[prev_element_index] = true
+    possible_moves = find_possible_moves(prev_element_index)
 
     while(possible_moves.length != 0){
         let next_move_index = possible_moves.pop()
         await visit(next_move_index, prev_element_index)
         if(await over(next_move_index))
             return
-        find_possible_moves(next_move_index)
+        let new_possible_moves = find_possible_moves(next_move_index)
+        possible_moves = possible_moves.concat(new_possible_moves)
         prev_element_index = next_move_index
         await sleep(5)
     }
@@ -296,13 +302,13 @@ async function dfs(){
 //-------------------------------------------------------------------------------
 async function bfs(){
     let prev_element_index = parseInt(start_element.id)
-    visited_nodes[prev_element_index] = true
+    node_visited[prev_element_index] = true
     possible_moves = find_possible_moves(prev_element_index, true)
 
     while(possible_moves.length != 0){
         // console.log(possible_moves)
         let next_move_index = possible_moves.shift()
-        if(visited_nodes[next_move_index])
+        if(node_visited[next_move_index])
             continue
         await visit(next_move_index, prev_element_index, true)
         if(await over(next_move_index)) 
@@ -321,17 +327,17 @@ function setParentNode(new_possible_moves, previous_node_index){
     }
 }
 
-//Dijkstra
+//Dijkstra and Astar functions
 //--------------------------------------------------------------------------------
-async function dijkstra(){
+async function main_pathfinding_function(best_move_choosing_function){
     let prev_element_index = parseInt(start_element.id)
-    visited_nodes[prev_element_index] = true
+    node_visited[prev_element_index] = true
     distances[prev_element_index] = 0
     possible_moves = find_possible_moves(prev_element_index)
     update_new_possible_moves_distances(prev_element_index, possible_moves)
     while(possible_moves.length != 0){
-        next_node_index = find_next_move_dijkstra()
-        if(visited_nodes[next_node_index])
+        next_node_index = best_move_choosing_function()
+        if(node_visited[next_node_index])
             continue
         await visit(next_node_index, prev_element_index, true)
         if(await over(next_node_index))
@@ -352,6 +358,12 @@ function update_new_possible_moves_distances(previous_node_index, new_nodes_inde
         }
     }
 }
+//Dijkstra
+//--------------------------------------------------------------------------------
+async function dijkstra(){
+    main_pathfinding_function(find_next_move_dijkstra)
+}
+
 
 function find_next_move_dijkstra(){
     let best_move_index = possible_moves[0]
@@ -361,6 +373,45 @@ function find_next_move_dijkstra(){
         if(distances[possible_move] < distances[best_move_index]){
             best_move_index = possible_move
             best_move_local_index = counter
+        }
+        counter += 1
+    }
+    possible_moves.splice(best_move_local_index, 1)
+    return best_move_index
+}
+
+
+//A*
+//----------------------------------------------------------------------------------
+async function a_star(){
+    main_pathfinding_function(find_next_move_a_star)
+}
+
+function find_next_move_a_star(){
+    let best_move_index = possible_moves[0]
+    let counter = 0
+    let best_move_local_index = 0
+    let end_x = parseInt(end_element.id) % col_num
+    let end_y = Math.floor(parseInt(end_element.id) / col_num)
+    for(let possible_move of possible_moves){
+        
+        let move_x = possible_move % col_num
+        let move_y = Math.floor(possible_move / col_num)
+        let best_move_x = best_move_index % col_num
+        let best_move_y = Math.floor(best_move_index / col_num)
+
+        let move_distance = Math.abs(end_x - move_x) + Math.abs(end_y - move_y)
+        let best_move_distance = Math.abs(end_x - best_move_x) + Math.abs(end_y - best_move_y)
+
+        if(distances[possible_move] + move_distance < distances[best_move_index] + best_move_distance){
+            best_move_index = possible_move
+            best_move_local_index = counter
+        }
+        else if(distances[possible_move] + move_distance == distances[best_move_index] + best_move_distance){
+            if(move_distance < best_move_distance){
+                best_move_index = possible_move
+                best_move_local_index = counter            
+            }
         }
         counter += 1
     }
@@ -397,7 +448,7 @@ function find_possible_moves(index){
 function add_top_element(index){
     let new_index = index - col_num 
     if(new_index >= 0)
-        if(!visited_nodes[new_index] && !walls_positions[new_index]){
+        if(!node_visited[new_index] && !walls_positions[new_index]){
             return new_index
         } 
 }
@@ -405,7 +456,7 @@ function add_top_element(index){
 function add_right_element(index){
     let new_index = index +  1
     if(new_index % col_num != 0)
-        if(!visited_nodes[new_index] && !walls_positions[new_index]){ 
+        if(!node_visited[new_index] && !walls_positions[new_index]){ 
             return new_index            
         } 
 }
@@ -413,7 +464,7 @@ function add_right_element(index){
 function add_bottom_element(index){
     let new_index = index + col_num
     if(new_index <= (row_num * col_num) - 1)
-        if(!visited_nodes[new_index] && !walls_positions[new_index]){
+        if(!node_visited[new_index] && !walls_positions[new_index]){
             return new_index
         }
 }
@@ -421,7 +472,7 @@ function add_bottom_element(index){
 function add_left_element(index){
     let new_index = index - 1
     if(index % col_num != 0)
-        if(!visited_nodes[new_index] && !walls_positions[new_index]){
+        if(!node_visited[new_index] && !walls_positions[new_index]){
             return new_index 
         }
 }
@@ -430,7 +481,21 @@ function add_left_element(index){
 //Start the pathfinding
 //--------------------------------------------------------------------------
 function start(){
-    // dfs()
-    // bfs()
-    dijkstra()
+    console.log(active_alogorithm)
+    switch(active_alogorithm){
+        case "Bfs":
+            bfs();
+            break;
+        case "Dfs":
+            dfs();
+            break;
+        case "Dijkstra":
+            dijkstra();
+            break;
+        case "AStar":
+            a_star()
+            break;
+        default:
+            break
+    }
 }
