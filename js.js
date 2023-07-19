@@ -469,8 +469,8 @@ function find_next_move_a_star(){
         let best_move_x = best_move_index % col_num
         let best_move_y = Math.floor(best_move_index / col_num)
 
-        let move_distance = Math.abs(end_x - move_x) + Math.abs(end_y - move_y)
-        let best_move_distance = Math.abs(end_x - best_move_x) + Math.abs(end_y - best_move_y)
+        let move_distance = (Math.abs(end_x - move_x) + Math.abs(end_y - move_y)) ** 2
+        let best_move_distance = (Math.abs(end_x - best_move_x) + Math.abs(end_y - best_move_y)) ** 2
 
         if(distances[possible_move] + move_distance < distances[best_move_index] + best_move_distance){
             best_move_index = possible_move
