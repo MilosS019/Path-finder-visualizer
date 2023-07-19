@@ -4,23 +4,48 @@ let active_button = document.getElementsByClassName("buttons")[0];
 let start_element = null;
 let end_element = null;
 let creating_walls = false;
-let col_num = 40;
-let row_num = 15;
+let col_num = 60;
+let row_num = 40;
 let speed = 10
 let active_alogorithm = "Dijkstra"
+let walls_stack = []
+let walls_placed_counter = [0,[]]
 
 //Path finding variables
 let possible_moves = [];
 let node_visited = []
 let fields = [];
 let walls_objects = [];
-let walls_positions = [];
+let is_wall = [];
 let move_history = []
 let distances = []
 let info_box_is_displayed = false;
 
+function set_undo(){
+    document.addEventListener('keydown', function(event) {
+        if (event.ctrlKey && event.key === 'z') {
+          remove_previously_placed_walls()
+        }
+      });
+}
+
+function remove_previously_placed_walls(){
+    if(walls_stack.length == 0)
+        return
+    let stack_obj = walls_stack.pop()
+    let num_of_placed_walls = stack_obj[0] 
+    let wall_indexes = stack_obj[1]
+    for(let i = 0; i < num_of_placed_walls; i++){
+        let wall = walls_objects.pop()
+        wall.classList.remove("wall");
+    }
+    for(let index of wall_indexes){
+        is_wall[index] = false
+    }
+}
+
 function ResetVariables(){
-    walls_positions = []
+    // walls_positions = []
     move_history = []
     possible_moves = []
     // ClearWalls()
@@ -38,7 +63,7 @@ function ResetVariables(){
 
 function CreateWallArray(){
     for(i = 0; i < row_num * col_num; i++){
-        walls_positions.push(false);
+        is_wall.push(false);
     }
 }
 
@@ -97,7 +122,9 @@ function ElementMouseDownEvent(i, element){
             if(!event.target.classList.contains("startField") && !event.target.classList.contains("endField")){
                 event.target.classList.add("wall")
                 walls_objects.push(event.target);
-                walls_positions[i] = true;
+                is_wall[i] = true;
+                walls_placed_counter[0] += 1
+                walls_placed_counter[1].push(i)
             }   
         }
     })
@@ -124,6 +151,9 @@ function ElementClickEvent(element){
 function ElementMouseUpEvent(element){
     element.addEventListener("mouseup", function(){
         creating_walls = false;
+        walls_stack.push(walls_placed_counter)
+        walls_placed_counter = [0,[]]
+        console.log("wtf")
     })
 }
 
@@ -134,7 +164,9 @@ function ElementMouseOverEvent(i, element){
             if(!event.target.classList.contains("startField") && !event.target.classList.contains("endField")){
                 event.target.classList.add("wall")
                 walls_objects.push(event.target);
-                walls_positions[i] = true;
+                is_wall[i] = true;
+                walls_placed_counter[0] += 1
+                walls_placed_counter[1].push(i)
             }
         }
     })
@@ -146,7 +178,7 @@ function ElementContextMenuEvent(i, element){
         if(current_mode == "wall"){
             if(!event.target.classList.contains("startField") && !event.target.classList.contains("endField")){
                 event.target.classList.remove("wall");
-                walls_positions[i] = false;
+                is_wall[i] = false;
             }
         } 
         return false;
@@ -155,6 +187,7 @@ function ElementContextMenuEvent(i, element){
 
 function GenerateSquares(){
     CreateWallArray();
+    set_undo()
     let grid = document.getElementById("grid");
     for(let i = 0; i < col_num * row_num; i++){
         let element = document.createElement("div")
@@ -180,7 +213,7 @@ function ClearWalls(){
         element.classList.remove("wall");
     });
     walls_objects = []
-    walls_positions = []
+    is_wall = []
 }
 
 function SetVariables(){
@@ -254,13 +287,10 @@ function CloseInfoBox(){
 }
 
 
-async function visit(index, prev_index, is_already_visited = false){
+async function visit(index, prev_index){
     if(index != parseInt(end_element.id))
         fields[index].classList.add("searchedFieldColor")
     node_visited[index] = true
-    if(!is_already_visited){
-        move_history[index] = prev_index
-    }
 }
 
 async function show_path(){
@@ -284,13 +314,17 @@ async function dfs(){
     let prev_element_index = parseInt(start_element.id)
     node_visited[prev_element_index] = true
     possible_moves = find_possible_moves(prev_element_index)
+    setParentNode(possible_moves, prev_element_index)
 
     while(possible_moves.length != 0){
         let next_move_index = possible_moves.pop()
+        if(node_visited[next_move_index])
+            continue
         await visit(next_move_index, prev_element_index)
         if(await over(next_move_index))
             return
         let new_possible_moves = find_possible_moves(next_move_index)
+        setParentNode(new_possible_moves, next_move_index)
         possible_moves = possible_moves.concat(new_possible_moves)
         prev_element_index = next_move_index
         await sleep(5)
@@ -310,7 +344,7 @@ async function bfs(){
         let next_move_index = possible_moves.shift()
         if(node_visited[next_move_index])
             continue
-        await visit(next_move_index, prev_element_index, true)
+        await visit(next_move_index, prev_element_index)
         if(await over(next_move_index)) 
             return;
         let new_possible_moves = find_possible_moves(next_move_index, true)
@@ -323,7 +357,8 @@ async function bfs(){
 
 function setParentNode(new_possible_moves, previous_node_index){
     for(let node_index of new_possible_moves){
-        move_history[node_index] = previous_node_index
+        if(!node_visited[node_index])
+            move_history[node_index] = previous_node_index
     }
 }
 
@@ -339,7 +374,7 @@ async function main_pathfinding_function(best_move_choosing_function){
         next_node_index = best_move_choosing_function()
         if(node_visited[next_node_index])
             continue
-        await visit(next_node_index, prev_element_index, true)
+        await visit(next_node_index, prev_element_index)
         if(await over(next_node_index))
             return
         let new_possible_moves = find_possible_moves(next_node_index)
@@ -448,7 +483,7 @@ function find_possible_moves(index){
 function add_top_element(index){
     let new_index = index - col_num 
     if(new_index >= 0)
-        if(!node_visited[new_index] && !walls_positions[new_index]){
+        if(!node_visited[new_index] && !is_wall[new_index]){
             return new_index
         } 
 }
@@ -456,7 +491,7 @@ function add_top_element(index){
 function add_right_element(index){
     let new_index = index +  1
     if(new_index % col_num != 0)
-        if(!node_visited[new_index] && !walls_positions[new_index]){ 
+        if(!node_visited[new_index] && !is_wall[new_index]){ 
             return new_index            
         } 
 }
@@ -464,7 +499,7 @@ function add_right_element(index){
 function add_bottom_element(index){
     let new_index = index + col_num
     if(new_index <= (row_num * col_num) - 1)
-        if(!node_visited[new_index] && !walls_positions[new_index]){
+        if(!node_visited[new_index] && !is_wall[new_index]){
             return new_index
         }
 }
@@ -472,7 +507,7 @@ function add_bottom_element(index){
 function add_left_element(index){
     let new_index = index - 1
     if(index % col_num != 0)
-        if(!node_visited[new_index] && !walls_positions[new_index]){
+        if(!node_visited[new_index] && !is_wall[new_index]){
             return new_index 
         }
 }
